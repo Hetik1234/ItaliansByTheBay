@@ -1,0 +1,36 @@
+# Django
+*.pyc
+__pycache__/
+*.sqlite3
+*.log
+db.sqlite3
+
+# Environments
+.env
+.venv
+env/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Static files
+staticfiles/
+media/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# AWS
+.elasticbeanstalk/
+
+# Logs
+*.log
+logs/
+
+# Docker
+docker-compose.override.yml

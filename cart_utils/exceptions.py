@@ -1,0 +1,2 @@
+class CartItemNotFound(Exception):
+    pass

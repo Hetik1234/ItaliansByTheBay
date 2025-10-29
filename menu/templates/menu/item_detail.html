@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>{{ item.name }}</h2>
+<p>Category: {{ item.category.name }}</p>
+<p>Price: €{{ item.price }}</p>
+<p>{{ item.description }}</p>
+<form action="{% url 'orders:add_to_cart' item.id %}" method="post">{% csrf_token %}
+  <button type="submit">Add to cart</button>
+</form>
+{% endblock %}

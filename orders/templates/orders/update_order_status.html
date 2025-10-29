@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Update Order #{{ order.id }}</h2>
+<form method="post">
+  {% csrf_token %}
+  <label for="status">Status:</label>
+  <select name="status" id="status">
+    {% for key, value in order.STATUS_CHOICES %}
+      <option value="{{ key }}" {% if key == order.status %}selected{% endif %}>{{ value }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit">Save</button>
+</form>
+{% endblock %}

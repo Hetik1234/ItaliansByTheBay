@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>All Orders (Admin)</h2>
+<ul>
+  {% for order in orders %}
+    <li>
+      {{ order.user.username }} — Order #{{ order.id }} — {{ order.status }} — €{{ order.total_price }}
+      <a href="{% url 'orders:update_order_status' order.id %}">Update</a>
+    </li>
+  {% empty %}
+    <li>No orders yet.</li>
+  {% endfor %}
+</ul>
+{% endblock %}
