@@ -1,14 +1,33 @@
 from pathlib import Path
 import os
+import environ  # <-- Import django-environ
 
+# --- Initialize django-environ ---
+env = environ.Env(
+    # set casting, default value
+    DEBUG=(bool, False)
+)
+
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = "replace-this-with-a-secure-secret-for-prod"
+# Reads your .env file
+environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+# --- End of environ setup ---
 
-DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost','ad016e706a0b4ccaac8c1e58d78b0151.vfs.cloud9.us-east-1.amazonaws.com']
+# Quick-start development settings - unsuitable for production
+# See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
+# SECRET_KEY and DEBUG are now read from your .env file
+SECRET_KEY = env('SECRET_KEY')
+DEBUG = env('DEBUG')
+
+
+# ALLOWED_HOSTS is read from your .env as a comma-separated list
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS')
+
+# Application definition
 INSTALLED_APPS = [
     # Django built-ins
     'django.contrib.admin',
@@ -54,21 +73,15 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'italians_by_the_bay.wsgi.application'
 
-# For now use SQLite for local development
+# Database
+# This will read the DATABASE_URL='sqlite:///db.sqlite3' from your .env file
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': env.db()
 }
 
-# Static & media
-STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
 
 # Password validation
+# https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -89,26 +102,35 @@ LOGIN_URL = '/users/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/users/login/'
 
+
 # Internationalization
+# https://docs.djangoproject.com/en/5.0/topics/i18n/
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
-USE_I18N = True
+USE_I1N = True
 USE_TZ = True
 
+
+# Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/5.0/howto/static-files/
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles' # For production 'collectstatic'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'       # For user-uploaded files
+
+# Default primary key field type
+# https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+
 # Email configuration (development version)
-#EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = "no-reply@italiansbythebay.com"
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 
-EMAIL_HOST = "smtp.gmail.com"
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_USE_SSL=False
-EMAIL_HOST_USER = "hetikchandaria67@gmail.com"
-EMAIL_HOST_PASSWORD = "bbyyorxkamooifci"
-
-
-
-
-
+# These values are now read from your .env file
+EMAIL_HOST = env('EMAIL_HOST')
+EMAIL_PORT = env.int('EMAIL_PORT') # .int() casts the value to an integer
+EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS') # .bool() casts the value to True/False
+EMAIL_USE_SSL = env.bool('EMAIL_USE_SSL')
+EMAIL_HOST_USER = env('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
