@@ -35,12 +35,17 @@
 
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav ms-auto">
-          <li class="nav-item"><a class="nav-link" href="{% url 'menu:home' %}">Home</a></li>
-
+          
           {% if user.is_authenticated %}
-            <li class="nav-item">
-              <span class="nav-link text-light">Hi, {{ user.username }}!</span>
-            </li>
+            <li class="nav-item mx-auto">
+              <span class="navbar-text position-absolute start-50 translate-middle-x text-warning fw-semibold">
+                Hi, {{ user.username }}!
+              </span>   
+            {% endif %}
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'menu:home' %}">Home</a>
+          </li>
+          {% if user.is_authenticated %}
             <li class="nav-item">
               <a class="nav-link" href="{% url 'orders:view_cart' %}">
                 Cart
@@ -49,7 +54,9 @@
                 {% endif %}
               </a>
             </li>
-            <li class="nav-item"><a class="nav-link" href="{% url 'orders:my_orders' %}">My Orders</a></li>
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'orders:my_orders' %}">My Orders</a>
+            </li>
 
             {% if user.is_staff %}
               <li class="nav-item"><a class="nav-link" href="{% url 'orders:all_orders' %}">Admin</a></li>

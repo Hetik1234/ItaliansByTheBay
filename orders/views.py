@@ -6,6 +6,8 @@ from decimal import Decimal
 from .models import Order, OrderItem
 from cart_utils.cart import Cart
 from menu.models import MenuItem
+from django.core.mail import EmailMultiAlternatives
+from django.conf import settings
 
 
 # CART MANAGEMENT
@@ -121,19 +123,60 @@ def delete_order(request, order_id):
 def all_orders(request):
     """Admin can view all orders."""
     orders = Order.objects.all().order_by('-created_at')
-    return render(request, 'orders/all_orders.html', {'orders': orders})
-
+    return render(request, 'orders/all_orders.html', {'orders': orders,
+    'status_choices': Order.STATUS_CHOICES,
+    })
 
 @staff_member_required
 def update_order_status(request, order_id):
-    """Admin updates the status of an order."""
     order = get_object_or_404(Order, id=order_id)
+
+    # Only allow POST requests for updates
     if request.method == 'POST':
         new_status = request.POST.get('status')
-        order.status = new_status
-        order.save()
-        messages.success(request, f"Order #{order.id} marked as {new_status}.")
-        # TODO: trigger notification (email or SES) later
+        if new_status and new_status != order.status:
+            order.status = new_status.capitalize()
+            order.save()
+
+            # Send email notification using template
+            try:
+                from django.template.loader import render_to_string
+                from django.core.mail import EmailMultiAlternatives
+
+                context = {
+                    'username': order.user.username,
+                    'order_id': order.id,
+                    'status': order.status,
+                    'site_name': 'Italians by the Bay',
+                }
+
+                html_content = render_to_string('emails/order_status_update.html', context)
+                email = EmailMultiAlternatives(
+                    subject=f"Order #{order.id} Status Update",
+                    body=f"Your order #{order.id} status has been updated to: {order.status}",  # plain text fallback
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    to=[order.user.email],
+                )
+                email.attach_alternative(html_content, "text/html")
+                email.send()
+
+                messages.success(
+                    request,
+                    f"Order #{order.id} updated to '{order.status}' and email sent to {order.user.email}."
+                )
+
+            except Exception as e:
+                messages.warning(
+                    request,
+                    f"Order #{order.id} updated to '{order.status}', but email could not be sent."
+                )
+                print("EMAIL ERROR:", e)
+
+        else:
+            messages.info(request, "No change in status detected.")
+
         return redirect('orders:all_orders')
 
-    return render(request, 'orders/update_order_status.html', {'order': order})
+    # Safety for GET requests
+    messages.warning(request, "You can only update orders from the admin panel.")
+    return redirect('orders:all_orders')

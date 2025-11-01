@@ -126,7 +126,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Email configuration (development version)
 DEFAULT_FROM_EMAIL = "no-reply@italiansbythebay.com"
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-
+#EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 # These values are now read from your .env file
 EMAIL_HOST = env('EMAIL_HOST')
 EMAIL_PORT = env.int('EMAIL_PORT') # .int() casts the value to an integer
