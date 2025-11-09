@@ -8,7 +8,7 @@ from cart_utils.cart import Cart
 from menu.models import MenuItem
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
-
+from order_status_notify import notify_status_change
 
 # CART MANAGEMENT
 @login_required
@@ -129,36 +129,26 @@ def all_orders(request):
 
 @staff_member_required
 def update_order_status(request, order_id):
+    """Allows admin to update an order's status and notifies the user by email."""
     order = get_object_or_404(Order, id=order_id)
+    print(f"[DEBUG] update_order_status triggered for order {order_id}, method={request.method}")
 
-    # Only allow POST requests for updates
     if request.method == 'POST':
         new_status = request.POST.get('status')
-        if new_status and new_status != order.status:
+
+        if new_status and new_status.capitalize() != order.status:
+            # Update status
             order.status = new_status.capitalize()
             order.save()
 
-            # Send email notification using template
+            # Clear any leftover messages to avoid duplicates
+            storage = messages.get_messages(request)
+            for _ in storage:
+                pass
+
             try:
-                from django.template.loader import render_to_string
-                from django.core.mail import EmailMultiAlternatives
-
-                context = {
-                    'username': order.user.username,
-                    'order_id': order.id,
-                    'status': order.status,
-                    'site_name': 'Italians by the Bay',
-                }
-
-                html_content = render_to_string('emails/order_status_update.html', context)
-                email = EmailMultiAlternatives(
-                    subject=f"Order #{order.id} Status Update",
-                    body=f"Your order #{order.id} status has been updated to: {order.status}",  # plain text fallback
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    to=[order.user.email],
-                )
-                email.attach_alternative(html_content, "text/html")
-                email.send()
+                # Send email notification using custom library
+                notify_status_change(order.user, order)
 
                 messages.success(
                     request,
@@ -168,7 +158,7 @@ def update_order_status(request, order_id):
             except Exception as e:
                 messages.warning(
                     request,
-                    f"Order #{order.id} updated to '{order.status}', but email could not be sent."
+                    f"Order #{order.id} updated to '{order.status}', but email notification failed."
                 )
                 print("EMAIL ERROR:", e)
 
@@ -177,6 +167,6 @@ def update_order_status(request, order_id):
 
         return redirect('orders:all_orders')
 
-    # Safety for GET requests
+    # GET requests — redirect safely
     messages.warning(request, "You can only update orders from the admin panel.")
     return redirect('orders:all_orders')

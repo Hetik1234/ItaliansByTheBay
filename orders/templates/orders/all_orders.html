@@ -3,15 +3,6 @@
 <div class="container mt-4">
   <h2 class="mb-4">All Orders</h2>
 
-  {% if messages %}
-    {% for message in messages %}
-      <div class="alert alert-success alert-dismissible fade show" role="alert">
-        {{ message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-      </div>
-    {% endfor %}
-  {% endif %}
-
   {% if orders %}
     <table class="table table-striped text-center align-middle">
       <thead class="table-dark">

@@ -1,6 +1,7 @@
 from pathlib import Path
 import os
 import environ  # <-- Import django-environ
+from decouple import config, Csv
 
 # --- Initialize django-environ ---
 env = environ.Env(
@@ -73,12 +74,16 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'italians_by_the_bay.wsgi.application'
 
-# Database
-# This will read the DATABASE_URL='sqlite:///db.sqlite3' from your .env file
 DATABASES = {
-    'default': env.db()
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('DB_NAME', default='italians_db'),
+        'USER': config('DB_USER', default='italians_user'),
+        'PASSWORD': config('DB_PASSWORD', default='italians_pass'),
+        'HOST': config('DB_HOST', default='localhost'),
+        'PORT': config('DB_PORT', default='5432'),
+    }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
@@ -124,13 +129,13 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 # Email configuration (development version)
-DEFAULT_FROM_EMAIL = "no-reply@italiansbythebay.com"
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='no-reply@italiansbythebay.com')
+EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
 #EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 # These values are now read from your .env file
-EMAIL_HOST = env('EMAIL_HOST')
-EMAIL_PORT = env.int('EMAIL_PORT') # .int() casts the value to an integer
-EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS') # .bool() casts the value to True/False
-EMAIL_USE_SSL = env.bool('EMAIL_USE_SSL')
-EMAIL_HOST_USER = env('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
+EMAIL_HOST = env('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = env.int('EMAIL_PORT', default=587)
+EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
+EMAIL_USE_SSL = env.bool('EMAIL_USE_SSL', default=False)
+EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
