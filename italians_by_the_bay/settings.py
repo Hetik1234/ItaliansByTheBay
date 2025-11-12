@@ -121,7 +121,7 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles' # For production 'collectstatic'
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'       # For user-uploaded files
+MEDIA_ROOT = MEDIA_ROOT = '/home/ec2-user/environment/ItaliansByTheBay/media'       # For user-uploaded files
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field

@@ -1,10 +1,29 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>{{ item.name }}</h2>
-<p>Category: {{ item.category.name }}</p>
-<p>Price: €{{ item.price }}</p>
-<p>{{ item.description }}</p>
-<form action="{% url 'orders:add_to_cart' item.id %}" method="post">{% csrf_token %}
-  <button type="submit">Add to cart</button>
-</form>
+<div class="container mt-4">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <div class="card shadow-sm p-3">
+        {% if item.image %}
+          <img src="{{ item.image.url }}" class="img-fluid rounded mb-3 item-detail-img" alt="{{ item.name }}">
+        {% endif %}
+        <h3>{{ item.name }}</h3>
+        <p class="text-muted mb-1">Category: {{ item.category.name }}</p>
+        <p class="fw-bold text-success">€{{ item.price }}</p>
+        <p>{{ item.description }}</p>
+        <form action="{% url 'orders:add_to_cart' item.id %}" method="post">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-success w-100">Add to Cart</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .item-detail-img {
+    max-height: 350px;
+    object-fit: cover;
+  }
+</style>
 {% endblock %}
