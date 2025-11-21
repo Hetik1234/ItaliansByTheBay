@@ -6,9 +6,8 @@ from decimal import Decimal
 from .models import Order, OrderItem
 from cart_utils.cart import Cart
 from menu.models import MenuItem
-from django.core.mail import EmailMultiAlternatives
-from django.conf import settings
-from order_status_notify import notify_status_change
+from cloud_notify import send_status_email  # library
+from django.template.loader import render_to_string
 
 # CART MANAGEMENT
 @login_required
@@ -52,7 +51,6 @@ def update_cart_quantity(request, item_id):
 
 @login_required
 def view_cart(request):
-    """Display all cart items."""
     cart = Cart(request.session)
     return render(request, 'orders/cart.html', {
         'cart_items': cart.get_items(),
@@ -60,7 +58,7 @@ def view_cart(request):
     })
 
 
-# CHECKOUT & ORDERS
+# CHECKOUT AND ORDERS
 @login_required
 def checkout(request):
     cart = request.session.get('cart', {})
@@ -75,8 +73,10 @@ def checkout(request):
             menu_item = MenuItem.objects.get(id=item_id)
         except MenuItem.DoesNotExist:
             continue
+
         price = Decimal(str(menu_item.price))
         qty = int(item_data.get('quantity', 1))
+
         OrderItem.objects.create(
             order=order,
             item=menu_item,
@@ -84,7 +84,6 @@ def checkout(request):
             price=price
         )
 
-    # The total auto-updates via OrderItem.save()
     if 'cart' in request.session:
         del request.session['cart']
 
@@ -94,21 +93,18 @@ def checkout(request):
 
 @login_required
 def checkout_success(request, order_id):
-    """Show success message after placing an order."""
     order = get_object_or_404(Order, id=order_id)
     return render(request, 'orders/checkout_success.html', {'order': order})
 
 
 @login_required
 def my_orders(request):
-    """Show all orders belonging to the current user."""
     orders = Order.objects.filter(user=request.user).order_by('-created_at')
     return render(request, 'orders/my_orders.html', {'orders': orders})
 
 
 @login_required
 def delete_order(request, order_id):
-    """Allow user to delete their own pending orders."""
     order = get_object_or_404(Order, id=order_id, user=request.user)
     if order.status.lower() == 'pending':
         order.delete()
@@ -121,16 +117,18 @@ def delete_order(request, order_id):
 # ADMIN VIEWS
 @staff_member_required
 def all_orders(request):
-    """Admin can view all orders."""
     orders = Order.objects.all().order_by('-created_at')
-    return render(request, 'orders/all_orders.html', {'orders': orders,
-    'status_choices': Order.STATUS_CHOICES,
+    return render(request, 'orders/all_orders.html', {
+        'orders': orders,
+        'status_choices': Order.STATUS_CHOICES,
     })
+
 
 @staff_member_required
 def update_order_status(request, order_id):
     """Allows admin to update an order's status and notifies the user by email."""
     order = get_object_or_404(Order, id=order_id)
+    # optional debug line:
     print(f"[DEBUG] update_order_status triggered for order {order_id}, method={request.method}")
 
     if request.method == 'POST':
@@ -147,20 +145,37 @@ def update_order_status(request, order_id):
                 pass
 
             try:
-                # Send email notification using custom library
-                notify_status_change(order.user, order)
+                # Render HTML email from your template
+                context = {
+                    'username': order.user.username,
+                    'order_id': order.id,
+                    'status': order.status,
+                    'site_name': 'Italians by the Bay',
+                }
+                html_body = render_to_string('emails/order_status_update.html', context)
+                text_body = f"Hi {order.user.username}, your order #{order.id} status has been updated to: {order.status}."
+
+                # Use generic cloud_notify library
+                send_status_email(
+                    to_email=order.user.email,
+                    subject=f"Your Order #{order.id} Status Updated",
+                    html_body=html_body,
+                    text_body=text_body,
+                    from_email=None,          # optional: override, otherwise uses default
+                    fail_silently=False
+                )
 
                 messages.success(
                     request,
-                    f"Order #{order.id} updated to '{order.status}' and email sent to {order.user.email}."
+                    f"Order #{order.id} updated to '{order.status}' and notification sent to {order.user.email}."
                 )
 
             except Exception as e:
                 messages.warning(
                     request,
-                    f"Order #{order.id} updated to '{order.status}', but email notification failed."
+                    f"Order #{order.id} updated to '{order.status}', but sending notification failed."
                 )
-                print("EMAIL ERROR:", e)
+                print("NOTIFIER ERROR:", e)
 
         else:
             messages.info(request, "No change in status detected.")

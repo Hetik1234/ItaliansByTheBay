@@ -1,0 +1,191 @@
+[
+{
+  "model": "auth.user",
+  "pk": 1,
+  "fields": {
+    "password": "pbkdf2_sha256$260000$sT67wyOE9DwsBH1AoJLhg1$jdzBBAivjkrFmLRzDgRxxx+dohwM9ysl5xC1q0nFYu4=",
+    "last_login": "2025-11-14T21:11:11.924Z",
+    "is_superuser": true,
+    "username": "admin",
+    "first_name": "",
+    "last_name": "",
+    "email": "hetikchandaria67@gmail.com",
+    "is_staff": true,
+    "is_active": true,
+    "date_joined": "2025-11-14T21:02:03.903Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "menu.category",
+  "pk": 1,
+  "fields": {
+    "name": "Pizza",
+    "description": "Wood-fired perfection with a modern twist — crispy, cheesy, and dangerously addictive.",
+    "image": "category_images/Pizza.jpg"
+  }
+},
+{
+  "model": "menu.category", 
+  "pk": 2,
+  "fields": {
+    "name": "Pasta",
+    "description": "Twirl, slurp, or scoop — our pasta is Italian comfort food with a gourmet attitude.",
+    "image": "category_images/Pasta.jpg"
+  }
+},
+{
+  "model": "menu.category",
+  "pk": 3, 
+  "fields": {
+    "name": "Mocktail",
+    "description": "Zero-proof, 100% vibe. Fresh, fizzy, and fabulous — sip without limits.",
+    "image": "category_images/Mocktails.jpg"
+  }
+},
+{
+  "model": "menu.menuitem",
+  "pk": 1,
+  "fields": {
+    "name": "Margherita",
+    "category": 1,
+    "price": "9.99",
+    "description": "Simple. Pure. Perfect.",
+    "image": "menu_images/Margherita.jpg",
+    "tagline": "Simple. Pure. Perfect."
+  }
+},
+{
+  "model": "menu.menuitem",
+  "pk": 2,
+  "fields": {
+    "name": "Pepperoni", 
+    "category": 1,
+    "price": "10.99",
+    "description": "Classic never looked this good.",
+    "image": "menu_images/Pepperoni.jpg",
+    "tagline": "Classic never looked this good."
+  }
+},
+{
+  "model": "menu.menuitem",
+  "pk": 3,
+  "fields": {
+    "name": "Veggie Delight",
+    "category": 1,
+    "price": "8.99", 
+    "description": "Colorful, crunchy, guilt-free joy.",
+    "image": "menu_images/Veggie_Delight.jpg",
+    "tagline": "Colorful, crunchy, guilt-free joy."
+  }
+},
+{
+  "model": "menu.menuitem",
+  "pk": 4,
+  "fields": {
+    "name": "Paneer Makhani",
+    "category": 1,
+    "price": "10.99",
+    "description": "Where Italy flirts with India.",
+    "image": "menu_images/Paneer_Makhani.jpg", 
+    "tagline": "Where Italy flirts with India."
+  }
+},
+{
+  "model": "menu.menuitem",
+  "pk": 5,
+  "fields": {
+    "name": "Alfredo",
+    "category": 2,
+    "price": "10.49",
+    "description": "Smooth, rich, irresistible.",
+    "image": "menu_images/Alfredo.jpg",
+    "tagline": "Smooth, rich, irresistible."
+  }
+},
+{
+  "model": "menu.menuitem",
+  "pk": 6,
+  "fields": {
+    "name": "Arrabbiata",
+    "category": 2,
+    "price": "9.99",
+    "description": "Spice up your soul.", 
+    "image": "menu_images/Arrabbiata.jpg",
+    "tagline": "Spice up your soul."
+  }
+},
+{
+  "model": "menu.menuitem",
+  "pk": 7,
+  "fields": {
+    "name": "Carbonara",
+    "category": 2,
+    "price": "11.49",
+    "description": "Creamy dreams come true.",
+    "image": "menu_images/Carbonara.jpg",
+    "tagline": "Creamy dreams come true."
+  }
+},
+{
+  "model": "menu.menuitem", 
+  "pk": 8,
+  "fields": {
+    "name": "Pesto",
+    "category": 2,
+    "price": "10.99",
+    "description": "Go green. Stay classy.",
+    "image": "menu_images/Pesto.jpg",
+    "tagline": "Go green. Stay classy."
+  }
+},
+{
+  "model": "menu.menuitem",
+  "pk": 9,
+  "fields": {
+    "name": "Virgin Mojito",
+    "category": 3,
+    "price": "4.99",
+    "description": "Fresh, minty, and totally chill.",
+    "image": "menu_images/Virgin_Mojito.jpg",
+    "tagline": "Fresh, minty, and totally chill." 
+  }
+},
+{
+  "model": "menu.menuitem",
+  "pk": 10,
+  "fields": {
+    "name": "Blue Lagoon",
+    "category": 3,
+    "price": "5.49",
+    "description": "Cool. Calm. Electric.",
+    "image": "menu_images/Blue_Lagoon.jpg",
+    "tagline": "Cool. Calm. Electric."
+  }
+},
+{
+  "model": "menu.menuitem",
+  "pk": 11,
+  "fields": {
+    "name": "Sunrise Splash", 
+    "category": 3,
+    "price": "5.99",
+    "description": "Good vibes in every glow.",
+    "image": "menu_images/Sunrise_Splash.jpg",
+    "tagline": "Good vibes in every glow."
+  }
+},
+{
+  "model": "menu.menuitem",
+  "pk": 12,
+  "fields": {
+    "name": "Lemon Fizz",
+    "category": 3, 
+    "price": "4.49",
+    "description": "Bubbly, bright, and bold.",
+    "image": "menu_images/Lemon_Fizz.jpg",
+    "tagline": "Bubbly, bright, and bold."
+  }
+}
+]
