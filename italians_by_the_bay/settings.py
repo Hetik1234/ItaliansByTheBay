@@ -32,7 +32,7 @@ INSTALLED_APPS = [
     'menu',
     'orders',
     'users',
-
+    'storages',
     'cloud_notify',   # our generic library
 ]
 
@@ -125,3 +125,9 @@ EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS')
 EMAIL_USE_SSL = env.bool('EMAIL_USE_SSL')
 EMAIL_HOST_USER = env('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
+
+# MEDIA (images stored in S3)
+DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME", "italians-by-the-bay-media")
+AWS_S3_REGION_NAME = os.getenv("AWS_REGION", "us-east-1")
+AWS_QUERYSTRING_AUTH = False  # Public media URLs
