@@ -60,6 +60,7 @@
 
             {% if user.is_staff %}
               <li class="nav-item"><a class="nav-link" href="{% url 'orders:all_orders' %}">Admin</a></li>
+              <li class="nav-item"><a class="nav-link" href="{% url 'orders:analytics_dashboard' %}">Analytics</a></li>
             {% endif %}
 
             <li class="nav-item"><a class="nav-link" href="{% url 'logout' %}">Logout</a></li>

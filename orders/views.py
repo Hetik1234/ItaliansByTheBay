@@ -8,6 +8,10 @@ from cart_utils.cart import Cart
 from menu.models import MenuItem
 from cloud_notify import send_status_email  # library
 from django.template.loader import render_to_string
+import logging
+from .dynamo_utils import save_order_to_dynamodb
+from orders.dynamo_utils import save_order_to_dynamodb
+
 
 # CART MANAGEMENT
 @login_required
@@ -66,8 +70,10 @@ def checkout(request):
         messages.warning(request, "Your cart is empty.")
         return redirect('menu:home')
 
+    # 1. Create order
     order = Order.objects.create(user=request.user, status="Pending")
 
+    # 2. Add order items
     for item_id, item_data in cart.items():
         try:
             menu_item = MenuItem.objects.get(id=item_id)
@@ -84,12 +90,19 @@ def checkout(request):
             price=price
         )
 
+    # 3. Clear cart
     if 'cart' in request.session:
         del request.session['cart']
 
+    # 4. Save analytics to DynamoDB
+    try:
+        save_order_to_dynamodb(order)
+    except Exception as e:
+        print("DYNAMODB ERROR:", e)
+
+    # 5. Redirect to success page
     messages.success(request, f"Order #{order.id} placed successfully!")
     return redirect('orders:checkout_success', order.id)
-
 
 @login_required
 def checkout_success(request, order_id):
@@ -126,26 +139,27 @@ def all_orders(request):
 
 @staff_member_required
 def update_order_status(request, order_id):
-    """Allows admin to update an order's status and notifies the user by email."""
     order = get_object_or_404(Order, id=order_id)
-    # optional debug line:
     print(f"[DEBUG] update_order_status triggered for order {order_id}, method={request.method}")
 
     if request.method == 'POST':
         new_status = request.POST.get('status')
 
         if new_status and new_status.capitalize() != order.status:
-            # Update status
+            # Update SQL
             order.status = new_status.capitalize()
             order.save()
 
-            # Clear any leftover messages to avoid duplicates
+            # Update DynamoDB
+            from orders.dynamo_utils import save_order_to_dynamodb
+            save_order_to_dynamodb(order)
+
+            # Clear leftover messages
             storage = messages.get_messages(request)
             for _ in storage:
                 pass
 
             try:
-                # Render HTML email from your template
                 context = {
                     'username': order.user.username,
                     'order_id': order.id,
@@ -153,27 +167,25 @@ def update_order_status(request, order_id):
                     'site_name': 'Italians by the Bay',
                 }
                 html_body = render_to_string('emails/order_status_update.html', context)
-                text_body = f"Hi {order.user.username}, your order #{order.id} status has been updated to: {order.status}."
+                text_body = f"Hi {order.user.username}, your order #{order.id} status has been updated to {order.status}."
 
-                # Use generic cloud_notify library
                 send_status_email(
                     to_email=order.user.email,
                     subject=f"Your Order #{order.id} Status Updated",
                     html_body=html_body,
                     text_body=text_body,
-                    from_email=None,          # optional: override, otherwise uses default
                     fail_silently=False
                 )
 
                 messages.success(
                     request,
-                    f"Order #{order.id} updated to '{order.status}' and notification sent to {order.user.email}."
+                    f"Order #{order.id} updated to '{order.status}' and notification sent."
                 )
 
             except Exception as e:
                 messages.warning(
                     request,
-                    f"Order #{order.id} updated to '{order.status}', but sending notification failed."
+                    f"Order #{order.id} updated, but notification failed."
                 )
                 print("NOTIFIER ERROR:", e)
 
@@ -182,6 +194,5 @@ def update_order_status(request, order_id):
 
         return redirect('orders:all_orders')
 
-    # GET requests — redirect safely
     messages.warning(request, "You can only update orders from the admin panel.")
     return redirect('orders:all_orders')
