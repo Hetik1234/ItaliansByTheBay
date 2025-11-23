@@ -7,36 +7,82 @@ from botocore.exceptions import ClientError
 
 logger = logging.getLogger(__name__)
 
-DDB_TABLE = os.getenv("DDB_TABLE_NAME", "OrderAnalytics")
-AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
-
-dynamodb = boto3.resource("dynamodb", region_name=AWS_REGION)
-table = dynamodb.Table(DDB_TABLE)
+TABLE_NAME = os.getenv("DDB_TABLE_NAME", "OrderAnalytics")
+REGION = os.getenv("AWS_REGION", "us-east-1")
 
 
+# -------------------------------------------------
+# ALWAYS GET FRESH CREDENTIALS
+# -------------------------------------------------
+def get_fresh_table():
+    """
+    Cloud9 uses temporary STS credentials that rotate.
+    This function ensures every DynamoDB call uses fresh credentials.
+    """
+    session = boto3.Session()                 # loads new rotating creds
+    dynamodb = session.resource("dynamodb", region_name=REGION)
+    return dynamodb.Table(TABLE_NAME)
+
+
+# -------------------------------------------------
+# SAVE ORDER TO DYNAMODB
+# -------------------------------------------------
 def save_order_to_dynamodb(order):
-    try:
-        order_items = []
+    table = get_fresh_table()
 
-        for oi in order.orderitem_set.all():   # FIXED
-            order_items.append({
+    try:
+        items = [
+            {
                 "item_name": oi.item.name,
                 "quantity": oi.quantity,
                 "price": str(oi.price)
-            })
+            }
+            for oi in order.orderitem_set.all()
+        ]
 
-        item = {
-            "user_id": str(order.user.id),
-            "order_id": str(order.id),
-            "created_at": order.created_at.isoformat(),
-            "status": order.status,
-            "total": str(order.total_amount()),
-            "items": order_items,
-        }
+        table.put_item(
+            Item={
+                "user_id": str(order.user.id),
+                "order_id": str(order.id),
+                "created_at": order.created_at.isoformat(),
+                "status": order.status,
+                "total": str(order.total_amount()),
+                "items": items,
+            }
+        )
 
-        table.put_item(Item=item)
         return True
 
     except Exception as e:
-        logger.error(f"Failed to save order {order.id} to DynamoDB: {e}")
+        logger.error(f"[DDB SAVE ERROR] Order {order.id}: {e}")
         return False
+
+
+# -------------------------------------------------
+# DELETE ORDER
+# -------------------------------------------------
+def delete_order_from_dynamodb(order):
+    try:
+        pk = {
+            "user_id": str(order.user.id),
+            "order_id": str(order.id)
+        }
+        table.delete_item(Key=pk)
+        return True
+    except Exception as e:
+        logger.error(f"Failed to delete order {order.id} from DynamoDB: {e}")
+        return False
+
+# -------------------------------------------------
+# FETCH ALL RECORDS FOR ANALYTICS PAGE
+# -------------------------------------------------
+def fetch_all_orders():
+    table = get_fresh_table()
+
+    try:
+        response = table.scan()
+        return response.get("Items", [])
+
+    except Exception as e:
+        logger.error(f"[DDB SCAN ERROR] {e}")
+        return []

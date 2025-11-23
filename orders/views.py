@@ -9,9 +9,9 @@ from menu.models import MenuItem
 from cloud_notify import send_status_email  # library
 from django.template.loader import render_to_string
 import logging
-from .dynamo_utils import save_order_to_dynamodb
 from orders.dynamo_utils import save_order_to_dynamodb
-
+from . import dynamo_dashboard
+from orders.dynamo_utils import delete_order_from_dynamodb
 
 # CART MANAGEMENT
 @login_required
@@ -100,7 +100,25 @@ def checkout(request):
     except Exception as e:
         print("DYNAMODB ERROR:", e)
 
-    # 5. Redirect to success page
+    # 5. PUBLISH TO SNS (Order Placed Event)
+    import boto3, os
+    sns = boto3.client("sns", region_name=os.getenv("AWS_REGION", "us-east-1"))
+    topic_arn = os.getenv("AWS_SNS_TOPIC_ARN")
+
+    if topic_arn and topic_arn != "replace_later_after_setup":
+        try:
+            sns.publish(
+                TopicArn=topic_arn,
+                Subject="New Order Placed",
+                Message=f"Order #{order.id} placed by {order.user.username} with total €{order.total_amount()}."
+            )
+            print(f"[SNS] Published Order #{order.id}")
+        except Exception as e:
+            print("[SNS ERROR]:", e)
+    else:
+        print("[SNS] Skipped — SNS topic ARN not configured yet.")
+
+    # 6. Redirect to success page
     messages.success(request, f"Order #{order.id} placed successfully!")
     return redirect('orders:checkout_success', order.id)
 
@@ -115,17 +133,22 @@ def my_orders(request):
     orders = Order.objects.filter(user=request.user).order_by('-created_at')
     return render(request, 'orders/my_orders.html', {'orders': orders})
 
-
 @login_required
 def delete_order(request, order_id):
     order = get_object_or_404(Order, id=order_id, user=request.user)
     if order.status.lower() == 'pending':
+        # Delete from DynamoDB
+        try:
+            delete_order_from_dynamodb(order)
+        except:
+            pass  
+        # Delete from SQL
         order.delete()
         messages.success(request, f"Order #{order_id} deleted successfully.")
     else:
         messages.warning(request, "Only pending orders can be deleted.")
-    return redirect('orders:my_orders')
 
+    return redirect('orders:my_orders')
 
 # ADMIN VIEWS
 @staff_member_required

@@ -1,59 +1,88 @@
-import boto3, os
+# orders/dynamo_dashboard.py
+import boto3
+from botocore.exceptions import ClientError
 from django.shortcuts import render
-from django.contrib.auth.models import User
+from django.contrib.admin.views.decorators import staff_member_required
 from decimal import Decimal
+import os
 
-def dynamo_dashboard(request):
-    AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
-    TABLE = os.getenv("DDB_TABLE_NAME", "OrderAnalytics")
 
-    ddb = boto3.resource("dynamodb", region_name=AWS_REGION)
-    table = ddb.Table(TABLE)
+def get_dynamodb_table():
+    """
+    Always fetch a fresh DynamoDB table object using auto-refreshed Cloud9 credentials.
+    Prevents ExpiredTokenException.
+    """
+    session = boto3.Session()  # Cloud9 automatically rotates credentials
+    dynamodb = session.resource("dynamodb", region_name=os.getenv("AWS_REGION", "us-east-1"))
+    table_name = os.getenv("DDB_TABLE_NAME", "OrderAnalytics")
+    return dynamodb.Table(table_name)
 
-    resp = table.scan()
-    items = resp.get("Items", [])
-    
-    items = sorted(
-    items,
-    key=lambda x: x.get("created_at", ""),
-    reverse=True
-    )
-    # Normalize values and add username
-    for item in items:
 
-        # convert total
-        if "total" in item:
-            try:
-                if isinstance(item["total"], Decimal):
-                    item["total"] = float(item["total"])
-                else:
-                    item["total"] = float(str(item["total"]))
-            except:
-                item["total"] = 0.0
+def fetch_all_orders():
+    """
+    Fetch all DynamoDB order analytics records safely.
+    Returns empty list if table is empty or inaccessible.
+    """
+    table = get_dynamodb_table()
 
-        # ---- FIX USERNAME HERE ----
-        raw_uid = item.get("user_id")
+    try:
+        response = table.scan()
+        return response.get("Items", [])
 
-        # normalize uid to int
+    except ClientError as e:
+        print("DynamoDB Scan Error:", e)
+        return []
+
+    except Exception as e:
+        print("Unknown DynamoDB Error:", e)
+        return []
+
+
+def compute_analytics(items):
+    """
+    Compute useful analytics from the DynamoDB records.
+    Returns a dictionary containing summary statistics.
+    """
+
+    if not items:
+        return {
+            "total_orders": 0,
+            "total_revenue": "0.00",
+            "avg_order_value": "0.00",
+            "unique_users": 0,
+        }
+
+    total_orders = len(items)
+    total_revenue = Decimal("0.00")
+    users = set()
+
+    for o in items:
+        users.add(o.get("user_id"))
         try:
-            if isinstance(raw_uid, Decimal):
-                uid = int(raw_uid)
-            else:
-                uid = int(str(raw_uid))  # handles "1", 1, " 1 "
-        except:
-            uid = None
+            total_revenue += Decimal(o.get("total", "0.00"))
+        except Exception:
+            pass  # Ignore malformed rows
 
-        # lookup username
-        if uid:
-            try:
-                item["username"] = User.objects.get(id=uid).username
-            except User.DoesNotExist:
-                item["username"] = "Unknown"
-        else:
-            item["username"] = "Unknown"
+    avg_order_value = (total_revenue / total_orders) if total_orders > 0 else 0
 
-    return render(request, "orders/dynamo_dashboard.html", {
-        "orders": items,
-        "count": len(items),
-        "total_revenue": sum(float(o.get("total", 0)) for o in items)
+    return {
+        "total_orders": total_orders,
+        "total_revenue": str(total_revenue),
+        "avg_order_value": str(round(avg_order_value, 2)),
+        "unique_users": len(users),
+    }
+
+
+@staff_member_required
+def dynamo_dashboard(request):
+    items = fetch_all_orders()
+
+    # Sort newest → oldest
+    items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+
+    stats = compute_analytics(items)
+
+    return render(request, "orders/analytics.html", {
+        "items": items,
+        "stats": stats,
     })
