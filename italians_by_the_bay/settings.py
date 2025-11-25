@@ -39,10 +39,10 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 SECRET_KEY = get_ssm_param("/italians/SECRET_KEY", env("SECRET_KEY"))
 DEBUG = env.bool('DEBUG', default=True)
 
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[
-    'localhost', '127.0.0.1', '0.0.0.0'
-])
-
+#ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[
+#    'localhost', '127.0.0.1', '0.0.0.0'
+#])
+ALLOWED_HOSTS=[*]
 
 # Apps
 INSTALLED_APPS = [
