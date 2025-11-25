@@ -12,6 +12,7 @@ import logging
 from orders.dynamo_utils import save_order_to_dynamodb
 from . import dynamo_dashboard
 from orders.dynamo_utils import delete_order_from_dynamodb
+from orders.sns_utils import publish_sns_message
 
 # CART MANAGEMENT
 @login_required
@@ -137,17 +138,21 @@ def my_orders(request):
 def delete_order(request, order_id):
     order = get_object_or_404(Order, id=order_id, user=request.user)
     if order.status.lower() == 'pending':
-        # Delete from DynamoDB
+        # 1. Delete from DynamoDB first
         try:
             delete_order_from_dynamodb(order)
-        except:
-            pass  
-        # Delete from SQL
+        except Exception as e:
+            print("Dynamo delete failed:", e)
+        
+        try:
+            publish_sns_message(f"Order #{order.id} was deleted by {request.user.username}.")
+        except Exception as e:
+            print("SNS delete error:", e)
+        # 2. Delete from SQLite
         order.delete()
         messages.success(request, f"Order #{order_id} deleted successfully.")
     else:
         messages.warning(request, "Only pending orders can be deleted.")
-
     return redirect('orders:my_orders')
 
 # ADMIN VIEWS

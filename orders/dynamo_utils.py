@@ -63,16 +63,27 @@ def save_order_to_dynamodb(order):
 # -------------------------------------------------
 def delete_order_from_dynamodb(order):
     try:
+        session = boto3.Session()
+
+        region = os.getenv("AWS_REGION", "us-east-1")
+        table_name = os.getenv("DDB_TABLE_NAME", "OrderAnalytics")
+
+        dynamodb = session.resource("dynamodb", region_name=region)
+        table = dynamodb.Table(table_name)
+
         pk = {
             "user_id": str(order.user.id),
             "order_id": str(order.id)
         }
+
         table.delete_item(Key=pk)
+        push_delete_metric(order.id)
+        print(f"[DDB] Deleted order {order.id}")
         return True
+
     except Exception as e:
         logger.error(f"Failed to delete order {order.id} from DynamoDB: {e}")
         return False
-
 # -------------------------------------------------
 # FETCH ALL RECORDS FOR ANALYTICS PAGE
 # -------------------------------------------------
@@ -86,3 +97,24 @@ def fetch_all_orders():
     except Exception as e:
         logger.error(f"[DDB SCAN ERROR] {e}")
         return []
+
+def push_delete_metric(order_id):
+    """Push CloudWatch metric when an order is deleted."""
+    try:
+        session = boto3.Session()
+        cloudwatch = session.client("cloudwatch", region_name=os.getenv("AWS_REGION", "us-east-1"))
+
+        cloudwatch.put_metric_data(
+            Namespace="ItaliansByTheBay/Orders",
+            MetricData=[
+                {
+                    "MetricName": "OrdersDeleted",
+                    "Value": 1,
+                    "Unit": "Count",
+                }
+            ]
+        )
+
+        print(f"[CloudWatch] Order deletion metric pushed for Order #{order_id}")
+    except Exception as e:
+        print(f"[CW ERROR] {e}")

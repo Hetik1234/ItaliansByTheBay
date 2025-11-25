@@ -1,0 +1,1 @@
+web: gunicorn italians_by_the_bay.wsgi --bind 0.0.0.0:$PORT

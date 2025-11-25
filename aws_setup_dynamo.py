@@ -7,6 +7,8 @@ from botocore.exceptions import ClientError
 
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 TABLE_NAME = os.getenv("DDB_TABLE_NAME", "OrderAnalytics")
+print("AWS_REGION",AWS_REGION)
+print("TABLE_NAME", TABLE_NAME)
 
 def get_dynamo_client():
     return boto3.client(

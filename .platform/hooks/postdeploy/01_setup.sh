@@ -2,54 +2,43 @@
 source /var/app/venv/*/bin/activate
 cd /var/app/current
 
-echo "=== COMPLETE DATABASE SETUP ==="
+DB_PATH="/var/app/data/db.sqlite3"
 
-echo "1. Checking current directory..."
-pwd
-ls -la
+echo "=== EB DEPLOY: DATABASE SETUP ==="
 
-echo "2. Running migrations..."
-python manage.py migrate
+# 1. Migrations
+python manage.py migrate --noinput
 
-echo "3. Checking database file..."
-if [ -f "db.sqlite3" ]; then
-    echo "Database file exists, setting permissions..."
-    chmod 664 db.sqlite3
+# 2. Ensure persistent SQLite exists
+if [ ! -f "$DB_PATH" ]; then
+    echo "Creating new persistent DB at $DB_PATH"
+    cp db.sqlite3 "$DB_PATH"
 else
-    echo "Database file not found in current directory"
+    echo "Using existing persistent DB at $DB_PATH"
 fi
 
-echo "4. Checking menu items..."
+chmod 664 "$DB_PATH"
+
+# 3. Load initial data
 python manage.py shell -c "
 from menu.models import MenuItem
-count = MenuItem.objects.count()
-print(f'Current menu items: {count}')
-if count < 12:
-    print('Loading initial data...')
-    from django.core.management import execute_from_command_line
-    execute_from_command_line(['manage.py', 'loaddata', 'initial_data.json'])
-    print('Data loaded successfully')
+from django.core.management import call_command
+if MenuItem.objects.count() < 12:
+    call_command('loaddata', 'initial_data.json')
+    print('Initial data loaded.')
 else:
-    print('Already have 12+ items')
+    print('Initial data already exists.')
 "
 
-echo "5. Ensuring admin user..."
+# 4. Create admin user
 python manage.py shell -c "
 from django.contrib.auth import get_user_model
 User = get_user_model()
 if not User.objects.filter(username='admin').exists():
     User.objects.create_superuser('admin', 'hetikchandaria67@gmail.com', 'admin123')
-    print('Admin user created')
+    print('Admin created')
 else:
-    print('Admin user exists')
+    print('Admin exists')
 "
 
-echo "6. Final verification..."
-python manage.py shell -c "
-from menu.models import MenuItem
-import os
-print(f'Final menu items: {MenuItem.objects.count()}')
-print(f'Database file exists: {os.path.exists(\"db.sqlite3\")}')
-"
-
-echo "=== SETUP COMPLETE ==="
+echo "=== EB DEPLOY COMPLETE ==="
