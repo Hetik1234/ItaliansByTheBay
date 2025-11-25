@@ -1,7 +1,7 @@
 from pathlib import Path
 import os
 import environ
-from decouple import config
+# from decouple import config  <-- REMOVED to fix the crash
 import boto3
 from botocore.exceptions import ClientError
 
@@ -34,15 +34,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 
-
 # SECURITY
-SECRET_KEY = get_ssm_param("/italians/SECRET_KEY", env("SECRET_KEY"))
+SECRET_KEY = get_ssm_param("/italians/SECRET_KEY", env("SECRET_KEY", default="unsafe-secret-key-for-dev"))
 DEBUG = env.bool('DEBUG', default=True)
 
-#ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[
-#    'localhost', '127.0.0.1', '0.0.0.0'
-#])
-ALLOWED_HOSTS=["*"]
+# Allow all hosts so AWS Elastic Beanstalk URL works
+ALLOWED_HOSTS = ["*"]
 
 # Apps
 INSTALLED_APPS = [
@@ -95,8 +92,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'italians_by_the_bay.wsgi.application'
 
 #    DATABASE (SQLite local)
-
-if env('ENVIRONMENT') == 'production':
+if env('ENVIRONMENT', default='local') == 'production':
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -137,14 +133,14 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Email (cloud_notify compatible)
-EMAIL_BACKEND = env('EMAIL_BACKEND')
-EMAIL_HOST = env('EMAIL_HOST')
-EMAIL_PORT = env.int('EMAIL_PORT')
-EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS')
-EMAIL_USE_SSL = env.bool('EMAIL_USE_SSL')
-EMAIL_HOST_USER = get_ssm_param("/italians/EMAIL_HOST_USER", env("EMAIL_HOST_USER"))
-EMAIL_HOST_PASSWORD = get_ssm_param("/italians/EMAIL_HOST_PASSWORD", env("EMAIL_HOST_PASSWORD"))
-DEFAULT_FROM_EMAIL = get_ssm_param("/italians/DEFAULT_FROM_EMAIL", env("DEFAULT_FROM_EMAIL"))
+EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = env('EMAIL_HOST', default='')
+EMAIL_PORT = env.int('EMAIL_PORT', default=587)
+EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
+EMAIL_USE_SSL = env.bool('EMAIL_USE_SSL', default=False)
+EMAIL_HOST_USER = get_ssm_param("/italians/EMAIL_HOST_USER", env("EMAIL_HOST_USER", default=""))
+EMAIL_HOST_PASSWORD = get_ssm_param("/italians/EMAIL_HOST_PASSWORD", env("EMAIL_HOST_PASSWORD", default=""))
+DEFAULT_FROM_EMAIL = get_ssm_param("/italians/DEFAULT_FROM_EMAIL", env("DEFAULT_FROM_EMAIL", default=""))
 
 
 # MEDIA (images stored in S3)
@@ -153,7 +149,5 @@ AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME", "italians-by-the-
 AWS_S3_REGION_NAME = os.getenv("AWS_REGION", "us-east-1")
 AWS_QUERYSTRING_AUTH = False  # Public media URLs
 
-DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
-
 MEDIA_URL = f"https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/"
-MEDIA_ROOT = ""  
+MEDIA_ROOT = ""
