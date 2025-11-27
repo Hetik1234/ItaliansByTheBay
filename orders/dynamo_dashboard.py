@@ -4,6 +4,8 @@ from botocore.exceptions import ClientError
 from django.shortcuts import render
 from django.contrib.admin.views.decorators import staff_member_required
 from decimal import Decimal
+from .cloudwatch_utils import get_metric_sum, get_peak_hour
+
 import os
 
 
@@ -76,13 +78,21 @@ def compute_analytics(items):
 @staff_member_required
 def dynamo_dashboard(request):
     items = fetch_all_orders()
-
+    
     # Sort newest → oldest
     items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
 
     stats = compute_analytics(items)
 
+    # CloudWatch metrics
+    cw_orders_24h = get_metric_sum("OrdersCount", hours=24)
+    cw_revenue_24h = get_metric_sum("Revenue", hours=24)
+    cw_peak = get_peak_hour()
+
     return render(request, "orders/analytics.html", {
         "items": items,
         "stats": stats,
+        "cw_orders_24h": cw_orders_24h,
+        "cw_revenue_24h": cw_revenue_24h,
+        "cw_peak": cw_peak,
     })

@@ -4,12 +4,28 @@
 
 <div class="container mt-4">
 
-    <h2 class="mb-4">📊 Order Analytics (DynamoDB)</h2>
+    <h2 class="mb-4">📊 Order Analytics Dashboard</h2>
 
-    <!-- Summary Statistics -->
+    <!-- CLOUDWATCH LIVE METRICS -->
     <div class="card mb-4 p-3 shadow-sm">
-        <h4>Summary</h4>
-        <ul>
+        <h4>CloudWatch Live Metrics (Last 24 Hours)</h4>
+        <ul class="mt-2">
+            <li><strong>Total Orders (CloudWatch):</strong> {{ cw_orders_24h }}</li>
+            <li><strong>Total Revenue (CloudWatch):</strong> €{{ cw_revenue_24h }}</li>
+            <li><strong>Peak Traffic Hour:</strong>
+                {% if cw_peak %}
+                    {{ cw_peak }}
+                {% else %}
+                    <span class="text-muted">No data available</span>
+                {% endif %}
+            </li>
+        </ul>
+    </div>
+
+    <!-- SUMMARY FROM DYNAMODB -->
+    <div class="card mb-4 p-3 shadow-sm">
+        <h4>DynamoDB Summary</h4>
+        <ul class="mt-2">
             <li><strong>Total Orders:</strong> {{ stats.total_orders }}</li>
             <li><strong>Total Revenue:</strong> €{{ stats.total_revenue }}</li>
             <li><strong>Average Order Value:</strong> €{{ stats.avg_order_value }}</li>
@@ -17,18 +33,18 @@
         </ul>
     </div>
 
-    <!-- Table of DynamoDB Orders -->
+    <!-- ORDER TABLE -->
     <div class="card p-3 shadow-sm">
-        <h4>Order Records</h4>
+        <h4>Order Records (DynamoDB)</h4>
 
         {% if items %}
-        <table class="table table-striped mt-3">
-            <thead>
+        <table class="table table-striped table-bordered mt-3">
+            <thead class="table-dark">
                 <tr>
                     <th>User ID</th>
                     <th>Order ID</th>
                     <th>Status</th>
-                    <th>Total</th>
+                    <th>Total (€)</th>
                     <th>Created</th>
                     <th>Items</th>
                 </tr>
@@ -39,12 +55,12 @@
                     <td>{{ o.user_id }}</td>
                     <td>{{ o.order_id }}</td>
                     <td>{{ o.status }}</td>
-                    <td>€{{ o.total }}</td>
+                    <td>{{ o.total }}</td>
                     <td>{{ o.created_at }}</td>
                     <td>
-                        <ul>
+                        <ul class="mb-0">
                             {% for item in o.items %}
-                            <li>{{ item.item_name }} × {{ item.quantity }} ({{ item.price }})</li>
+                                <li>{{ item.item_name }} × {{ item.quantity }} ({{ item.price }})</li>
                             {% endfor %}
                         </ul>
                     </td>
@@ -55,7 +71,6 @@
         {% else %}
         <p class="text-muted">No records found in DynamoDB.</p>
         {% endif %}
-
     </div>
 
 </div>
