@@ -78,16 +78,42 @@ def export_daily_json(amount):
 def lambda_handler(event, context):
     print("EVENT RECEIVED")
 
-    records = event.get("Records", [])
+    dynamodb = boto3.resource("dynamodb", region_name=AWS_REGION)
+    table = dynamodb.Table("OrderAnalytics")
 
-    for r in records:
-        body = json.loads(r.get("body", "{}"))
-        message = body.get("Message", "")
+    try:
+        records = event.get("Records", [])
 
-        print("Processing:", message)
+        for r in records:
+            # Parse SNS message from SQS
+            sqs_body = json.loads(r.get("body", "{}"))
+            message = sqs_body.get("Message", "")
 
-        order_id, amount = parse_order_message(message)
-        push_metrics(order_id, amount)
-        export_daily_json(amount)
+            order_id, amount = parse_order_message(message)
 
-    return {"status": "ok"}
+            # Fetch actual order info from DynamoDB
+            try:
+                ddb_order = table.get_item(
+                    Key={"user_id": "1", "order_id": str(order_id)}
+                )
+                item = ddb_order.get("Item")
+
+                if not item:
+                    print(f"Order {order_id} NOT found in DynamoDB. Skipping...")
+                    continue
+
+                real_amount = float(item.get("total", 0))
+                print("DynamoDB verified:", item)
+
+            except Exception as e:
+                print("DynamoDB lookup failed:", e)
+                continue
+
+            # ✔ Push corrected metrics
+            push_metrics(order_id, real_amount)
+
+        return {"status": "ok", "count": len(records)}
+
+    except Exception as e:
+        print("CRITICAL ERROR:", e)
+        raise e
