@@ -36,4 +36,4 @@ jobs:
           environment_name: ItaliansByTheBay-env
           version_label: v-${{ github.run_number }}
           region: us-east-1
-          deployment_package: application.zip 
+          deployment_package: application.zip
