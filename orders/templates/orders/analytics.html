@@ -10,8 +10,8 @@
     <div class="card mb-4 p-3 shadow-sm">
         <h4>CloudWatch Live Metrics (Last 24 Hours)</h4>
         <ul class="mt-2">
-            <li><strong>Total Orders (CloudWatch):</strong> {{ cw_orders_24h }}</li>
-            <li><strong>Total Revenue (CloudWatch):</strong> €{{ cw_revenue_24h }}</li>
+            <li><strong>Total Orders :</strong> {{ cw_orders_24h }}</li>
+            <li><strong>Total Revenue :</strong> €{{ cw_revenue_24h }}</li>
             <li><strong>Peak Traffic Hour:</strong>
                 {% if cw_peak %}
                     {{ cw_peak }}
@@ -26,8 +26,6 @@
     <div class="card mb-4 p-3 shadow-sm">
         <h4>DynamoDB Summary</h4>
         <ul class="mt-2">
-            <li><strong>Total Orders:</strong> {{ stats.total_orders }}</li>
-            <li><strong>Total Revenue:</strong> €{{ stats.total_revenue }}</li>
             <li><strong>Average Order Value:</strong> €{{ stats.avg_order_value }}</li>
             <li><strong>Unique Users:</strong> {{ stats.unique_users }}</li>
         </ul>
