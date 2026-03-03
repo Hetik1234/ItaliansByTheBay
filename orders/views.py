@@ -1,20 +1,42 @@
+import requests
+from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from decimal import Decimal
+from django.template.loader import render_to_string
+
 from .models import Order, OrderItem
 from cart_utils.cart import Cart
 from menu.models import MenuItem
-from cloud_notify import send_status_email  # library
-from django.template.loader import render_to_string
-import logging
-from orders.dynamo_utils import save_order_to_dynamodb
-from . import dynamo_dashboard
-from orders.dynamo_utils import delete_order_from_dynamodb
-from orders.sns_utils import publish_sns_message
+from .loyalty_utils import award_points
+from .loyalty_utils import award_points, get_loyalty_balance, redeem_points
+# --- API HELPER FUNCTION ---
+def trigger_cloudmail_api(to_email, subject, html_content):
+    """
+    Helper function to send emails via our external CloudMail API.
+    Returns a tuple: (Success_Boolean, Response_Message)
+    """
+    payload = {
+        "to_email": to_email,
+        "subject": subject,
+        "message": html_content, 
+        "from_name": "Italians by the Bay",
+        "reply_to": "support@italiansbythebay.com"
+    }
+    
+    try:
+        api_response = requests.post(settings.CLOUDMAIL_API_URL, data=payload)
+        if api_response.status_code == 200:
+            return True, "Email sent successfully"
+        return False, api_response.text
+    except requests.exceptions.RequestException as e:
+        return False, f"API Connection Error: {str(e)}"
 
-# CART MANAGEMENT
+
+# --- CART MANAGEMENT ---
+
 @login_required
 def add_to_cart(request, item_id):
     item = get_object_or_404(MenuItem, id=item_id)
@@ -37,7 +59,6 @@ def remove_from_cart(request, item_id):
 
 @login_required
 def update_cart_quantity(request, item_id):
-    """Allow user to change quantity directly in the cart screen."""
     if request.method == 'POST':
         new_qty = int(request.POST.get('quantity', 1))
         cart = request.session.get('cart', {})
@@ -49,6 +70,7 @@ def update_cart_quantity(request, item_id):
             else:
                 del cart[str(item_id)]
                 messages.info(request, "Item removed from cart.")
+
             request.session['cart'] = cart
 
     return redirect('orders:view_cart')
@@ -62,8 +84,30 @@ def view_cart(request):
         'total': cart.total_price()
     })
 
+@login_required
+def view_cart(request):
+    cart = Cart(request.session)
+    subtotal = float(cart.total_price())
+    
+    # Grab the discount from the session (default to 0)
+    discount = request.session.get('loyalty_discount', 0.00)
+    
+    # Ensure total doesn't go below 0
+    final_total = max(0, subtotal - discount)
+    
+    # Get balance to show the user if they CAN redeem
+    loyalty_token = request.session.get('loyalty_token')
+    balance = get_loyalty_balance(loyalty_token, request.user.id) if loyalty_token else 0
 
-# CHECKOUT AND ORDERS
+    return render(request, 'orders/cart.html', {
+        'cart_items': cart.get_items(),
+        'subtotal': subtotal,
+        'discount': discount,
+        'final_total': final_total,
+        'points_balance': balance
+    })
+# --- CHECKOUT & ORDERS ---
+
 @login_required
 def checkout(request):
     cart = request.session.get('cart', {})
@@ -71,55 +115,66 @@ def checkout(request):
         messages.warning(request, "Your cart is empty.")
         return redirect('menu:home')
 
+    # --- NEW: Calculate points BEFORE we clear the cart ---
+    cart_obj = Cart(request.session)
+    points_earned = int(cart_obj.total_price())
+
     # 1. Create order
     order = Order.objects.create(user=request.user, status="Pending")
 
-    # 2. Add order items
+    # 2. Create order items
     for item_id, item_data in cart.items():
         try:
             menu_item = MenuItem.objects.get(id=item_id)
         except MenuItem.DoesNotExist:
             continue
 
-        price = Decimal(str(menu_item.price))
-        qty = int(item_data.get('quantity', 1))
-
         OrderItem.objects.create(
             order=order,
             item=menu_item,
-            quantity=qty,
-            price=price
+            quantity=int(item_data.get('quantity', 1)),
+            price=Decimal(str(menu_item.price))
         )
 
     # 3. Clear cart
-    if 'cart' in request.session:
-        del request.session['cart']
-
-    # 4. Save analytics to DynamoDB
-    try:
-        save_order_to_dynamodb(order)
-    except Exception as e:
-        print("DYNAMODB ERROR:", e)
-
-    # 5. PUBLISH TO SNS (Order Placed Event)
-    import boto3, os
-    sns = boto3.client("sns", region_name=os.getenv("AWS_REGION", "us-east-1"))
-    topic_arn = os.getenv("AWS_SNS_TOPIC_ARN")
-
-    if topic_arn and topic_arn != "replace_later_after_setup":
-        try:
-            sns.publish(
-                TopicArn=topic_arn,
-                Subject="New Order Placed",
-                Message=f"Order #{order.id} placed by {order.user.username} with total €{order.total_amount()}."
-            )
-            print(f"[SNS] Published Order #{order.id}")
-        except Exception as e:
-            print("[SNS ERROR]:", e)
+    request.session.pop('cart', None)
+    request.session.pop('loyalty_discount', None)
+    # --- NEW: LOYALTY API INTEGRATION ---
+    loyalty_token = request.session.get('loyalty_token')
+    
+    if loyalty_token:
+        print(f"Awarding {points_earned} points to user {request.user.id}...")
+        success, msg = award_points(loyalty_token, request.user.id, points_earned)
+        
+        if success:
+            messages.success(request, f"🎉 You earned {points_earned} loyalty points!")
+        else:
+            print(f"Loyalty API Error: {msg}")
     else:
-        print("[SNS] Skipped — SNS topic ARN not configured yet.")
+        print("WARNING: No loyalty token found in session. Points not awarded.")
 
-    # 6. Redirect to success page
+    # 4. Trigger Order Confirmation Email
+    try:
+        context = {
+            'username': request.user.username,
+            'order_id': order.id,
+            'site_name': 'Italians by the Bay',
+        }
+        # Render the confirmation template
+        html_body = render_to_string('emails/order_confirmation.html', context)
+        
+        success, msg = trigger_cloudmail_api(
+            to_email=request.user.email,
+            subject=f"Order Received! Confirmation #{order.id}",
+            html_content=html_body
+        )
+        
+        if not success:
+            print(f"Checkout Email Warning: {msg}")
+            
+    except Exception as e:
+        print(f"Checkout Email Template Error: {e}")
+
     messages.success(request, f"Order #{order.id} placed successfully!")
     return redirect('orders:checkout_success', order.id)
 
@@ -134,28 +189,22 @@ def my_orders(request):
     orders = Order.objects.filter(user=request.user).order_by('-created_at')
     return render(request, 'orders/my_orders.html', {'orders': orders})
 
+
 @login_required
 def delete_order(request, order_id):
     order = get_object_or_404(Order, id=order_id, user=request.user)
+
     if order.status.lower() == 'pending':
-        # 1. Delete from DynamoDB first
-        try:
-            delete_order_from_dynamodb(order)
-        except Exception as e:
-            print("Dynamo delete failed:", e)
-        
-        try:
-            publish_sns_message(f"Order #{order.id} was deleted by {request.user.username}.")
-        except Exception as e:
-            print("SNS delete error:", e)
-        # 2. Delete from SQLite
         order.delete()
         messages.success(request, f"Order #{order_id} deleted successfully.")
     else:
         messages.warning(request, "Only pending orders can be deleted.")
+
     return redirect('orders:my_orders')
 
-# ADMIN VIEWS
+
+# --- ADMIN VIEWS ---
+
 @staff_member_required
 def all_orders(request):
     orders = Order.objects.all().order_by('-created_at')
@@ -168,24 +217,13 @@ def all_orders(request):
 @staff_member_required
 def update_order_status(request, order_id):
     order = get_object_or_404(Order, id=order_id)
-    print(f"[DEBUG] update_order_status triggered for order {order_id}, method={request.method}")
 
     if request.method == 'POST':
         new_status = request.POST.get('status')
 
         if new_status and new_status.capitalize() != order.status:
-            # Update SQL
             order.status = new_status.capitalize()
             order.save()
-
-            # Update DynamoDB
-            from orders.dynamo_utils import save_order_to_dynamodb
-            save_order_to_dynamodb(order)
-
-            # Clear leftover messages
-            storage = messages.get_messages(request)
-            for _ in storage:
-                pass
 
             try:
                 context = {
@@ -194,33 +232,55 @@ def update_order_status(request, order_id):
                     'status': order.status,
                     'site_name': 'Italians by the Bay',
                 }
+                
                 html_body = render_to_string('emails/order_status_update.html', context)
-                text_body = f"Hi {order.user.username}, your order #{order.id} status has been updated to {order.status}."
 
-                send_status_email(
+                # Use our new helper function!
+                success, msg = trigger_cloudmail_api(
                     to_email=order.user.email,
                     subject=f"Your Order #{order.id} Status Updated",
-                    html_body=html_body,
-                    text_body=text_body,
-                    fail_silently=False
+                    html_content=html_body
                 )
 
-                messages.success(
-                    request,
-                    f"Order #{order.id} updated to '{order.status}' and notification sent."
-                )
+                if success:
+                    messages.success(request, f"Order #{order.id} updated and notification sent.")
+                else:
+                    messages.warning(request, f"Order updated, but email API failed: {msg}")
 
             except Exception as e:
-                messages.warning(
-                    request,
-                    f"Order #{order.id} updated, but notification failed."
-                )
-                print("NOTIFIER ERROR:", e)
-
+                messages.warning(request, "Order updated, but email notification failed internally.")
+                print("INTERNAL TEMPLATE ERROR:", e)
         else:
-            messages.info(request, "No change in status detected.")
+            messages.info(request, "No change in order status.")
 
         return redirect('orders:all_orders')
 
-    messages.warning(request, "You can only update orders from the admin panel.")
+    messages.warning(request, "Invalid request.")
     return redirect('orders:all_orders')
+    
+@login_required
+def apply_loyalty_discount(request):
+    """Handles the user clicking 'Redeem 50 points' in the cart."""
+    loyalty_token = request.session.get('loyalty_token')
+    
+    if not loyalty_token:
+        messages.warning(request, "Loyalty system unavailable. Please log in again.")
+        return redirect('orders:view_cart')
+
+    # 1. Check their balance first
+    current_balance = get_loyalty_balance(loyalty_token, request.user.id)
+    
+    if current_balance >= 50:
+        # 2. Try to redeem the points via the API
+        success, msg = redeem_points(loyalty_token, request.user.id, 50)
+        
+        if success:
+            # 3. Apply the €5 discount to their session
+            request.session['loyalty_discount'] = 5.00
+            messages.success(request, "🎉 50 points redeemed! €5.00 discount applied to your cart.")
+        else:
+            messages.error(request, f"Could not redeem points: {msg}")
+    else:
+        messages.warning(request, f"You only have {current_balance} points. 50 required to redeem.")
+
+    return redirect('orders:view_cart')

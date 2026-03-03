@@ -1,22 +1,6 @@
 from pathlib import Path
 import os
 import environ
-import boto3
-from botocore.exceptions import ClientError
-
-
-def get_ssm_param(name, default=None):
-    """
-    Retrieve parameter from AWS SSM Parameter Store (SecureString).
-    Falls back to default if any error occurs.
-    """
-    try:
-        ssm = boto3.client("ssm", region_name="us-east-1")
-        response = ssm.get_parameter(Name=name, WithDecryption=True)
-        return response["Parameter"]["Value"]
-    except Exception:
-        return default
-
 
 # Environment setup
 env = environ.Env(DEBUG=(bool, False))
@@ -28,12 +12,10 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 # Default to production in Elastic Beanstalk
 ENVIRONMENT = env('ENVIRONMENT', default='production')
 
-
-# Security
-SECRET_KEY = get_ssm_param("/italians/SECRET_KEY", env("SECRET_KEY", default="dummy"))
+# Security (Simplified to use environment variables directly)
+SECRET_KEY = env("SECRET_KEY", default="dummy")
 DEBUG = env.bool('DEBUG', default=False)
 ALLOWED_HOSTS = ["*"]
-
 
 # Installed apps
 INSTALLED_APPS = [
@@ -48,9 +30,8 @@ INSTALLED_APPS = [
     'orders',
     'users',
     'storages',
-    'cloud_notify',
+    # Removed 'cloud_notify' as it is no longer needed
 ]
-
 
 # Middleware
 MIDDLEWARE = [
@@ -63,9 +44,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-
 ROOT_URLCONF = 'italians_by_the_bay.urls'
-
 
 # Templates
 TEMPLATES = [
@@ -84,9 +63,7 @@ TEMPLATES = [
     },
 ]
 
-
 WSGI_APPLICATION = 'italians_by_the_bay.wsgi.application'
-
 
 # Database
 if ENVIRONMENT == 'production':
@@ -104,7 +81,6 @@ else:
         }
     }
 
-
 # Password validators
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -113,12 +89,10 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-
 # Authentication redirects
 LOGIN_URL = '/users/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/users/login/'
-
 
 # Internationalization
 LANGUAGE_CODE = 'en-us'
@@ -126,32 +100,18 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-
 # Static files
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# --- NEW CLOUDMAIL API INTEGRATION ---
+CLOUDMAIL_API_URL = "https://563u4wcc1g.execute-api.us-east-1.amazonaws.com/prod/api/send/"
 
-# Email configuration (SSM + fallback)
-EMAIL_BACKEND = env('EMAIL_BACKEND', default="django.core.mail.backends.smtp.EmailBackend")
-EMAIL_HOST = env('EMAIL_HOST', default="smtp.gmail.com")
-EMAIL_PORT = env.int('EMAIL_PORT', default=587)
-EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
-EMAIL_USE_SSL = env.bool('EMAIL_USE_SSL', default=False)
-
-EMAIL_HOST_USER = get_ssm_param("/italians/EMAIL_HOST_USER", env("EMAIL_HOST_USER", default=""))
-EMAIL_HOST_PASSWORD = get_ssm_param("/italians/EMAIL_HOST_PASSWORD", env("EMAIL_HOST_PASSWORD", default=""))
-DEFAULT_FROM_EMAIL = get_ssm_param("/italians/DEFAULT_FROM_EMAIL", env("DEFAULT_FROM_EMAIL", default="no-reply@example.com"))
-
-
-# Media storage (S3)
+# --- MEDIA STORAGE (S3) ---
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
-
-AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME", "italians-by-the-bay-media")
+AWS_STORAGE_BUCKET_NAME = "italians-by-the-bay-media1"
 AWS_S3_REGION_NAME = os.getenv("AWS_REGION", "us-east-1")
 AWS_QUERYSTRING_AUTH = False
-
 MEDIA_URL = f"https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/"
 MEDIA_ROOT = ""

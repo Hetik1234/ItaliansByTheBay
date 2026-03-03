@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Order Confirmation</title>
+  </head>
+  <body>
+    <h2>{{ site_name }}</h2>
+    
+    <p>Ciao <strong>{{ username }}</strong>,</p>
+    
+    <p>Grazie for your order! This email is to confirm that we have successfully received your request.</p>
+    
+    <h3>Order #{{ order_id }}</h3>
+    <p>Status: <strong>Pending</strong></p>
+
+    <p>Our chefs are getting started right away. We will send you another update as soon as the status changes.</p>
+    
+    <br>
+    <p>Buon Appetito!<br>The {{ site_name }} Team</p>
+  </body>
+</html>

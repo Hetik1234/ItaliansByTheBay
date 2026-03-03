@@ -3,9 +3,19 @@
 <div class="container mt-5" style="max-width: 400px;">
   <h3 class="mb-4 text-center">Login</h3>
 
-  <form method="post">
+  <form method="POST" action="{% url 'users:login' %}">
     {% csrf_token %}
-    {{ form.as_p }}
+    
+    <div class="mb-3">
+        <label for="username" class="form-label">Username</label>
+        <input type="text" name="username" id="username" class="form-control" required>
+    </div>
+
+    <div class="mb-3">
+        <label for="password" class="form-label">Password</label>
+        <input type="password" name="password" id="password" class="form-control" required>
+    </div>
+
     <button type="submit" class="btn btn-dark w-100">Login</button>
   </form>
 

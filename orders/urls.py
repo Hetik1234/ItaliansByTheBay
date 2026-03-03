@@ -1,6 +1,5 @@
 from django.urls import path
 from . import views
-from .dynamo_dashboard import dynamo_dashboard 
 
 app_name = 'orders'
 
@@ -11,7 +10,7 @@ urlpatterns = [
     path('update-cart/<int:item_id>/', views.update_cart_quantity, name='update_cart_quantity'),
     path('cart/', views.view_cart, name='view_cart'),
     path('checkout/', views.checkout, name='checkout'),
-
+    path('apply-discount/', views.apply_loyalty_discount, name='apply_loyalty_discount'),
     # User orders
     path('my/', views.my_orders, name='my_orders'),
     path('delete/<int:order_id>/', views.delete_order, name='delete_order'),
@@ -21,6 +20,4 @@ urlpatterns = [
     path('update-order/<int:order_id>/', views.update_order_status, name='update_order_status'),
     path('checkout/success/<int:order_id>/', views.checkout_success, name='checkout_success'),
 
-    # DynamoDB Analytics Dashboard
-    path('analytics/', dynamo_dashboard, name='analytics_dashboard'),
 ]

@@ -4,10 +4,9 @@ import json
 import mimetypes
 
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
-BUCKET = "italians-by-the-bay-media"
+BUCKET = "italians-by-the-bay-media1"
 
 s3 = boto3.client("s3", region_name=AWS_REGION)
-
 
 # ------------------------------
 # Create bucket (safe for rerun)
@@ -26,6 +25,18 @@ def create_bucket():
                 CreateBucketConfiguration={"LocationConstraint": AWS_REGION}
             )
         print(f" Bucket created")
+
+    # Disable "Block Public Access" (Required for public bucket policies)
+    s3.put_public_access_block(
+        Bucket=BUCKET,
+        PublicAccessBlockConfiguration={
+            'BlockPublicAcls': False,
+            'IgnorePublicAcls': False,
+            'BlockPublicPolicy': False,
+            'RestrictPublicBuckets': False
+        }
+    )
+    print(" Public access blocks disabled")
 
     # Apply public policy
     policy = {
@@ -74,11 +85,12 @@ def upload_folder(local_folder, s3_prefix):
 
         print(f" Uploading {filename} → {s3_key}")
 
+        # REMOVED "ACL": "public-read" because modern buckets use policies instead
         s3.upload_file(
             local_file,
             BUCKET,
             s3_key,
-            ExtraArgs={"ContentType": content_type, "ACL": "public-read"}
+            ExtraArgs={"ContentType": content_type}
         )
 
     print(" Upload complete")
