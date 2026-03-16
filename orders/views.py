@@ -10,8 +10,8 @@ from django.template.loader import render_to_string
 from .models import Order, OrderItem
 from cart_utils.cart import Cart
 from menu.models import MenuItem
-from .loyalty_utils import award_points
 from .loyalty_utils import award_points, get_loyalty_balance, redeem_points
+
 # --- API HELPER FUNCTION ---
 def trigger_cloudmail_api(to_email, subject, html_content):
     """
@@ -34,7 +34,25 @@ def trigger_cloudmail_api(to_email, subject, html_content):
     except requests.exceptions.RequestException as e:
         return False, f"API Connection Error: {str(e)}"
 
-
+def get_inr_exchange_rate():
+    """
+    Fetches the live EUR to INR exchange rate from a free public API.
+    No API key required!
+    """
+    # This is a highly reliable, free, open-source currency CDN
+    url = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/eur.json"
+    
+    try:
+        response = requests.get(url, timeout=3)
+        if response.status_code == 200:
+            data = response.json()
+            # The API returns data['eur']['inr']
+            return data.get('eur', {}).get('inr', 100.00) 
+    except Exception as e:
+        print(f"Currency API Error: {e}")
+        
+    # Always return a safe fallback (approx 90 INR to 1 EUR) so your app never crashes!
+    return 100.00
 # --- CART MANAGEMENT ---
 
 @login_required
@@ -45,7 +63,6 @@ def add_to_cart(request, item_id):
     messages.success(request, f"{item.name} added to cart.")
     return redirect('orders:view_cart')
 
-
 @login_required
 def remove_from_cart(request, item_id):
     cart = Cart(request.session)
@@ -55,7 +72,6 @@ def remove_from_cart(request, item_id):
     except Exception:
         messages.error(request, "Unable to remove item.")
     return redirect('orders:view_cart')
-
 
 @login_required
 def update_cart_quantity(request, item_id):
@@ -75,15 +91,6 @@ def update_cart_quantity(request, item_id):
 
     return redirect('orders:view_cart')
 
-
-@login_required
-def view_cart(request):
-    cart = Cart(request.session)
-    return render(request, 'orders/cart.html', {
-        'cart_items': cart.get_items(),
-        'total': cart.total_price()
-    })
-
 @login_required
 def view_cart(request):
     cart = Cart(request.session)
@@ -95,16 +102,27 @@ def view_cart(request):
     # Ensure total doesn't go below 0
     final_total = max(0, subtotal - discount)
     
-    # Get balance to show the user if they CAN redeem
+    # Get balance using the UUID
     loyalty_token = request.session.get('loyalty_token')
-    balance = get_loyalty_balance(loyalty_token, request.user.id) if loyalty_token else 0
+    api_uuid = request.session.get('loyalty_api_uuid')
+    
+    balance = get_loyalty_balance(loyalty_token, api_uuid) if (loyalty_token and api_uuid) else 0
+
+    # --- NEW: Public Currency API Integration ---
+    exchange_rate = get_inr_exchange_rate()
+    # Calculate INR and round to 2 decimal places
+    inr_total = round(final_total * exchange_rate, 2)
+    # Round the exchange rate just to make it look clean on the frontend
+    clean_rate = round(exchange_rate, 2)
 
     return render(request, 'orders/cart.html', {
         'cart_items': cart.get_items(),
         'subtotal': subtotal,
         'discount': discount,
         'final_total': final_total,
-        'points_balance': balance
+        'points_balance': balance,
+        'inr_total': inr_total,         # Send the INR amount to the HTML
+        'exchange_rate': clean_rate     # Send the live rate to the HTML
     })
 # --- CHECKOUT & ORDERS ---
 
@@ -115,7 +133,7 @@ def checkout(request):
         messages.warning(request, "Your cart is empty.")
         return redirect('menu:home')
 
-    # --- NEW: Calculate points BEFORE we clear the cart ---
+    # --- Calculate points BEFORE we clear the cart ---
     cart_obj = Cart(request.session)
     points_earned = int(cart_obj.total_price())
 
@@ -139,19 +157,21 @@ def checkout(request):
     # 3. Clear cart
     request.session.pop('cart', None)
     request.session.pop('loyalty_discount', None)
-    # --- NEW: LOYALTY API INTEGRATION ---
-    loyalty_token = request.session.get('loyalty_token')
     
-    if loyalty_token:
-        print(f"Awarding {points_earned} points to user {request.user.id}...")
-        success, msg = award_points(loyalty_token, request.user.id, points_earned)
+    # --- LOYALTY API INTEGRATION (Using UUID) ---
+    loyalty_token = request.session.get('loyalty_token')
+    api_uuid = request.session.get('loyalty_api_uuid')
+    
+    if loyalty_token and api_uuid:
+        print(f"Awarding {points_earned} points to API User {api_uuid}...")
+        success, msg = award_points(loyalty_token, api_uuid, points_earned)
         
         if success:
             messages.success(request, f"🎉 You earned {points_earned} loyalty points!")
         else:
             print(f"Loyalty API Error: {msg}")
     else:
-        print("WARNING: No loyalty token found in session. Points not awarded.")
+        print("WARNING: No loyalty token or UUID found in session. Points not awarded.")
 
     # 4. Trigger Order Confirmation Email
     try:
@@ -183,12 +203,10 @@ def checkout_success(request, order_id):
     order = get_object_or_404(Order, id=order_id)
     return render(request, 'orders/checkout_success.html', {'order': order})
 
-
 @login_required
 def my_orders(request):
     orders = Order.objects.filter(user=request.user).order_by('-created_at')
     return render(request, 'orders/my_orders.html', {'orders': orders})
-
 
 @login_required
 def delete_order(request, order_id):
@@ -202,7 +220,6 @@ def delete_order(request, order_id):
 
     return redirect('orders:my_orders')
 
-
 # --- ADMIN VIEWS ---
 
 @staff_member_required
@@ -212,7 +229,6 @@ def all_orders(request):
         'orders': orders,
         'status_choices': Order.STATUS_CHOICES,
     })
-
 
 @staff_member_required
 def update_order_status(request, order_id):
@@ -235,7 +251,6 @@ def update_order_status(request, order_id):
                 
                 html_body = render_to_string('emails/order_status_update.html', context)
 
-                # Use our new helper function!
                 success, msg = trigger_cloudmail_api(
                     to_email=order.user.email,
                     subject=f"Your Order #{order.id} Status Updated",
@@ -262,17 +277,18 @@ def update_order_status(request, order_id):
 def apply_loyalty_discount(request):
     """Handles the user clicking 'Redeem 50 points' in the cart."""
     loyalty_token = request.session.get('loyalty_token')
+    api_uuid = request.session.get('loyalty_api_uuid')
     
-    if not loyalty_token:
+    if not loyalty_token or not api_uuid:
         messages.warning(request, "Loyalty system unavailable. Please log in again.")
         return redirect('orders:view_cart')
 
     # 1. Check their balance first
-    current_balance = get_loyalty_balance(loyalty_token, request.user.id)
+    current_balance = get_loyalty_balance(loyalty_token, api_uuid)
     
     if current_balance >= 50:
         # 2. Try to redeem the points via the API
-        success, msg = redeem_points(loyalty_token, request.user.id, 50)
+        success, msg = redeem_points(loyalty_token, api_uuid, 50)
         
         if success:
             # 3. Apply the €5 discount to their session

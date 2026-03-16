@@ -48,16 +48,22 @@
       <h6 class="text-success mb-2">Loyalty Discount: -€{{ discount|floatformat:2 }}</h6>
     {% endif %}
     
-    <h4 class="mb-3"><strong>Final Total: €{{ final_total|floatformat:2 }}</strong></h4>
-
+    <h4 class="mb-0"><strong>Final Total: €{{ final_total|floatformat:2 }}</strong></h4>
+    
+    <h5 class="text-secondary mb-1 mt-1">
+        (₹{{ inr_total|floatformat:2 }} INR)
+    </h5>
+    <small class="text-muted d-block mb-3">
+        <em>Live Exchange Rate: 1 EUR = ₹{{ exchange_rate|floatformat:2 }}</em>
+    </small>
     <div class="d-flex justify-content-end align-items-center mb-3">
       {% if points_balance >= 50 and discount == 0 %}
         <span class="me-3 text-muted">You have <strong>{{ points_balance }}</strong> points!</span>
         <a href="{% url 'orders:apply_loyalty_discount' %}" class="btn btn-warning btn-sm shadow-sm">
-          ⭐ Redeem 50 Points for €5 Off
+           Redeem 50 Points for €5 Off
         </a>
       {% elif discount > 0 %}
-        <span class="badge bg-success p-2 fs-6 shadow-sm">⭐ €5 Discount Applied!</span>
+        <span class="badge bg-success p-2 fs-6 shadow-sm"> €5 Discount Applied!</span>
       {% else %}
         <span class="text-muted small">
           You have {{ points_balance }} points. Earn 50 to unlock a €5 discount!
