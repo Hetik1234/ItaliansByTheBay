@@ -14,3 +14,8 @@ six==1.17.0
 sqlparse==0.4.2
 urllib3==1.26.20
 decouple
+requests==2.31.0
+setuptools==69.0.3setuptools==69.0.3 requests==2.31.0
+setuptools==69.0.3 requests==2.31.0
+setuptools==69.0.3 requests==2.31.0
+setuptools==69.0.3 requests==2.31.0
