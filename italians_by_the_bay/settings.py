@@ -106,7 +106,7 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # --- NEW CLOUDMAIL API INTEGRATION ---
-CLOUDMAIL_API_URL = "https://563u4wcc1g.execute-api.us-east-1.amazonaws.com/prod/api/send/"
+CLOUDMAIL_URL = "https://27zlcvmy53.execute-api.us-east-1.amazonaws.com/Prod/api/send/"
 
 # --- MEDIA STORAGE (S3) ---
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
