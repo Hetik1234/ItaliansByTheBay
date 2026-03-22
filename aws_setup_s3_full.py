@@ -4,12 +4,13 @@ import json
 import mimetypes
 
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
-BUCKET = "italians-by-the-bay-media1"
+# Change this number if the bucket name is already taken globally!
+BUCKET = "italians-by-the-bay-media-v3" 
 
 s3 = boto3.client("s3", region_name=AWS_REGION)
 
 # ------------------------------
-# Create bucket (safe for rerun)
+# Create bucket & configure security
 # ------------------------------
 def create_bucket():
     try:
@@ -24,7 +25,7 @@ def create_bucket():
                 Bucket=BUCKET,
                 CreateBucketConfiguration={"LocationConstraint": AWS_REGION}
             )
-        print(f" Bucket created")
+        print(f"✔ Bucket created")
 
     # Disable "Block Public Access" (Required for public bucket policies)
     s3.put_public_access_block(
@@ -36,9 +37,9 @@ def create_bucket():
             'RestrictPublicBuckets': False
         }
     )
-    print(" Public access blocks disabled")
+    print("✔ Public access blocks disabled")
 
-    # Apply public policy
+    # Apply public-read policy
     policy = {
         "Version": "2012-10-17",
         "Statement": [{
@@ -53,8 +54,23 @@ def create_bucket():
         Bucket=BUCKET,
         Policy=json.dumps(policy)
     )
+    print("✔ Public-read policy applied")
 
-    print(" Public-read policy applied")
+    # Apply CORS configuration (Required for browsers to load S3 images)
+    cors_configuration = {
+        'CORSRules': [{
+            'AllowedHeaders': ['*'],
+            'AllowedMethods': ['GET', 'POST', 'PUT', 'HEAD'],
+            'AllowedOrigins': ['*'],
+            'ExposeHeaders': []
+        }]
+    }
+    
+    s3.put_bucket_cors(
+        Bucket=BUCKET,
+        CORSConfiguration=cors_configuration
+    )
+    print("✔ CORS configuration applied")
 
 
 # ------------------------------
@@ -83,9 +99,8 @@ def upload_folder(local_folder, s3_prefix):
 
         content_type = mimetypes.guess_type(local_file)[0] or "image/jpeg"
 
-        print(f" Uploading {filename} → {s3_key}")
+        print(f"  Uploading {filename} → {s3_key}")
 
-        # REMOVED "ACL": "public-read" because modern buckets use policies instead
         s3.upload_file(
             local_file,
             BUCKET,
@@ -93,7 +108,7 @@ def upload_folder(local_folder, s3_prefix):
             ExtraArgs={"ContentType": content_type}
         )
 
-    print(" Upload complete")
+    print("✔ Upload complete")
 
 
 # ------------------------------
@@ -125,4 +140,4 @@ if __name__ == "__main__":
     print_final_urls("menu_images")
     print_final_urls("category_images")
 
-    print("\nAll done! ")
+    print("\nAll done! 🚀")
