@@ -16,7 +16,7 @@ ENVIRONMENT = env('ENVIRONMENT', default='production')
 SECRET_KEY = env("SECRET_KEY", default="dummy")
 DEBUG = env.bool('DEBUG', default=False)
 ALLOWED_HOSTS = ["*"]
-
+CSRF_TRUSTED_ORIGINS = ['https://*.amazonaws.com']
 # Installed apps
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -106,11 +106,11 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # --- NEW CLOUDMAIL API INTEGRATION ---
-CLOUDMAIL_URL = "https://27zlcvmy53.execute-api.us-east-1.amazonaws.com/Prod/api/send/"
+CLOUDMAIL_API_URL = "https://2rsma0i53j.execute-api.us-east-1.amazonaws.com/prod/api/send/"
 
 # --- MEDIA STORAGE (S3) ---
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
-AWS_STORAGE_BUCKET_NAME = "italians-by-the-bay-media1"
+AWS_STORAGE_BUCKET_NAME = "italians-by-the-bay-media-v3"
 AWS_S3_REGION_NAME = os.getenv("AWS_REGION", "us-east-1")
 AWS_QUERYSTRING_AUTH = False
 MEDIA_URL = f"https://{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/"

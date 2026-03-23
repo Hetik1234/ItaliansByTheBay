@@ -11,7 +11,7 @@ from orders.loyalty_utils import get_loyalty_balance
 AWS_VERIFY_URL = "http://email-verifier-env.eba-mdagwhcq.us-east-1.elasticbeanstalk.com/api/email/"
 AWS_STATUS_URL = "http://email-verifier-env.eba-mdagwhcq.us-east-1.elasticbeanstalk.com/api/status/"
 OTP_API_URL = "http://otpapi-env.eba-pjkmm4m3.us-east-1.elasticbeanstalk.com"
-CLOUDMAIL_URL = "https://27zlcvmy53.execute-api.us-east-1.amazonaws.com/Prod/api/send/" 
+CLOUDMAIL_URL = "https://2rsma0i53j.execute-api.us-east-1.amazonaws.com/prod/api/send/" 
 LOYALTY_API_URL = "http://loyalty-api.us-east-1.elasticbeanstalk.com/api/v1"
 
 def register_view(request):
