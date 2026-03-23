@@ -8,8 +8,10 @@ from django.contrib.auth.decorators import login_required
 from orders.loyalty_utils import get_loyalty_balance
 
 # --- MICROSERVICE ENDPOINTS ---
-AWS_VERIFY_URL = "http://email-verifier-env.eba-jxvqtmpn.us-east-1.elasticbeanstalk.com/email/"
-AWS_STATUS_URL = "http://email-verifier-env.eba-jxvqtmpn.us-east-1.elasticbeanstalk.com/status/"
+AWS_VERIFY_URL = "https://gkudcyuzrc.execute-api.us-east-1.amazonaws.com/prod/email"
+AWS_STATUS_URL = "https://gkudcyuzrc.execute-api.us-east-1.amazonaws.com/prod/status"
+AWS_API_KEY = "e3XIRF3O5TashYGZM5L6v5dMWzN5I8qYNeIiB8J5"
+
 OTP_API_URL = "http://otpapi-env.eba-pjkmm4m3.us-east-1.elasticbeanstalk.com"
 CLOUDMAIL_URL = "https://2rsma0i53j.execute-api.us-east-1.amazonaws.com/prod/api/send/" 
 LOYALTY_API_URL = "http://loyalty-api.us-east-1.elasticbeanstalk.com/api/v1"
@@ -38,7 +40,14 @@ def register_view(request):
 
         # 3. The Email Verifier Bouncer
         try:
-            api_resp = requests.post(AWS_VERIFY_URL, json={"email": email})
+            # FIX: Define the headers BEFORE making the request, using AWS_API_KEY
+            headers = {
+                "x-api-key": AWS_API_KEY,
+                "Content-Type": "application/json"
+            }
+            
+            # FIX: Attach the headers to the request
+            api_resp = requests.post(AWS_VERIFY_URL, json={"email": email}, headers=headers)
             
             print(f"Friend's API Status Code: {api_resp.status_code}")
             print(f"Friend's API Raw Response: {api_resp.text}")
@@ -156,7 +165,14 @@ def custom_login_view(request):
             if not user.is_active:
                 print("5. Account is locked. Asking API for status...")
                 try:
-                    status_resp = requests.get(AWS_STATUS_URL, params={"email": user.email})
+                    # FIX: Add headers for the status check
+                    headers = {
+                        "x-api-key": AWS_API_KEY,
+                        "Content-Type": "application/json"
+                    }
+                    
+                    # FIX: Attach headers to the GET request
+                    status_resp = requests.get(AWS_STATUS_URL, params={"email": user.email}, headers=headers)
                     print(f"6. API Status Code: {status_resp.status_code}")
                     print(f"7. API Raw Response: {status_resp.text}")
 
