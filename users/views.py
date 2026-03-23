@@ -8,8 +8,8 @@ from django.contrib.auth.decorators import login_required
 from orders.loyalty_utils import get_loyalty_balance
 
 # --- MICROSERVICE ENDPOINTS ---
-AWS_VERIFY_URL = "http://email-verifier-env.eba-mdagwhcq.us-east-1.elasticbeanstalk.com/api/email/"
-AWS_STATUS_URL = "http://email-verifier-env.eba-mdagwhcq.us-east-1.elasticbeanstalk.com/api/status/"
+AWS_VERIFY_URL = "http://email-verifier-env.eba-jxvqtmpn.us-east-1.elasticbeanstalk.com/email/"
+AWS_STATUS_URL = "http://email-verifier-env.eba-jxvqtmpn.us-east-1.elasticbeanstalk.com/status/"
 OTP_API_URL = "http://otpapi-env.eba-pjkmm4m3.us-east-1.elasticbeanstalk.com"
 CLOUDMAIL_URL = "https://2rsma0i53j.execute-api.us-east-1.amazonaws.com/prod/api/send/" 
 LOYALTY_API_URL = "http://loyalty-api.us-east-1.elasticbeanstalk.com/api/v1"
