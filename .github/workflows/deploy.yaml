@@ -136,7 +136,7 @@ jobs:
       - uses: zaproxy/action-baseline@v0.15.0
         with:
           # IMPORTANT: Update this URL to match your newly deployed Beanstalk environment!
-          target: 'http://ItaliansByTheBay-env.eba-xxxxxxx.us-east-1.elasticbeanstalk.com'
+          target: 'http://italiansbythebay-env.eba-ijmmbgff.us-east-1.elasticbeanstalk.com/'
           allow_issue_writing: false
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
