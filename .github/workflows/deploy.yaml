@@ -47,7 +47,7 @@ jobs:
     needs: security
     name: Pytest + Coverage
     env:
-      DJANGO_SETTINGS_MODULE: italiansbythebay.settings # Adjust if your main config folder is named differently
+      DJANGO_SETTINGS_MODULE: ItaliansByTheBay.settings 
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
