@@ -47,7 +47,7 @@ jobs:
     needs: security
     name: Pytest + Coverage
     env:
-      DJANGO_SETTINGS_MODULE: italians_by_the_bay.settings # Adjust if your main config folder is named differently
+      DJANGO_SETTINGS_MODULE: italians_by_the_bay.settings
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -59,13 +59,12 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-cov pytest-django
       - name: Run pytest with coverage
-        run: pytest --cov=. --cov-report=xml --suppress-no-test-exit-code
+        run: pytest --cov=. --cov-report=xml || [ $? -eq 5 ]
       - uses: actions/upload-artifact@v4
         with:
           name: coverage
           path: coverage.xml
           if-no-files-found: warn
-
   # 4) SONARCLOUD JOB
   sonar:
     runs-on: ubuntu-latest
